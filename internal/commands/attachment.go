@@ -177,7 +177,7 @@ func parseAttachments(html string) []Attachment {
 	// Match action-text-attachment elements with their inner content and any trailing
 	// <figure> block. The figure may appear inside or outside the attachment tags depending
 	// on how the server renders the HTML (e.g. when wrapped in <p> tags).
-	attachmentRegex := regexp.MustCompile(`(?s)<action-text-attachment\s+([^>]+)>(.*?)</action-text-attachment>(?:</p>)?(<figure[^>]*>.*?</figure>)?`)
+	attachmentRegex := regexp.MustCompile(`(?s)<action-text-attachment\s+([^>]+)>(.*?)</action-text-attachment>(?:\s*</p>)?\s*(<figure[^>]*>.*?</figure>)?`)
 	matches := attachmentRegex.FindAllStringSubmatch(html, -1)
 
 	for i, match := range matches {
