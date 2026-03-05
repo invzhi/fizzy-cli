@@ -225,28 +225,30 @@ func TestCardAttachmentsCommand(t *testing.T) {
 			defer ResetTestMode()
 
 			rootCmd.SetArgs([]string{"card", "attachments", "show", tt.cardNumber})
-
-			RunTestCommand(func() {
-				_ = rootCmd.Execute()
-			})
+			err := rootCmd.Execute()
 
 			if result.Response == nil {
 				t.Fatal("expected response, got nil")
 			}
 
 			if tt.expectSuccess {
-				if !result.Response.Success {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if !result.Response.OK {
 					t.Errorf("expected success, got error: %v", result.Response)
 				}
 
 				// Check that attachments were parsed
-				if attachments, ok := result.Response.Data.([]Attachment); ok {
+				if attachments, ok := result.Response.Data.([]any); ok {
 					if len(attachments) != tt.expectedCount {
 						t.Errorf("expected %d attachments, got %d", tt.expectedCount, len(attachments))
 					}
+				} else if tt.expectedCount > 0 {
+					t.Errorf("expected []any data with %d items, got %T", tt.expectedCount, result.Response.Data)
 				}
 			} else {
-				if result.Response.Success {
+				if result.Response.OK {
 					t.Errorf("expected error containing %q, got success", tt.expectError)
 				}
 			}
@@ -479,17 +481,16 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 			defer ResetTestMode()
 
 			rootCmd.SetArgs(tt.args)
-
-			RunTestCommand(func() {
-				_ = rootCmd.Execute()
-			})
-
-			if result.Response == nil {
-				t.Fatal("expected response, got nil")
-			}
+			err := rootCmd.Execute()
 
 			if tt.expectSuccess {
-				if !result.Response.Success {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if result.Response == nil {
+					t.Fatal("expected response, got nil")
+				}
+				if !result.Response.OK {
 					t.Errorf("expected success, got error: %v", result.Response)
 				}
 
@@ -506,20 +507,23 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 				}
 
 				// Verify response data
-				if data, ok := result.Response.Data.(map[string]any); ok {
-					if downloaded, ok := data["downloaded"].(int); ok {
-						if downloaded != tt.expectedDownloads {
-							t.Errorf("expected downloaded count %d, got %d", tt.expectedDownloads, downloaded)
+				if result.Response != nil {
+
+					if data, ok := result.Response.Data.(map[string]any); ok {
+						if downloaded, ok := data["downloaded"].(int); ok {
+							if downloaded != tt.expectedDownloads {
+								t.Errorf("expected downloaded count %d, got %d", tt.expectedDownloads, downloaded)
+							}
 						}
 					}
 				}
 			} else {
-				if result.Response.Success {
+				if err == nil && result.Response != nil && result.Response.OK {
 					t.Errorf("expected error containing %q, got success", tt.expectError)
 				}
-				if tt.expectError != "" && result.Response.Error != nil {
-					if !containsString(result.Response.Error.Message, tt.expectError) {
-						t.Errorf("expected error containing %q, got %q", tt.expectError, result.Response.Error.Message)
+				if tt.expectError != "" && err != nil {
+					if !containsString(err.Error(), tt.expectError) {
+						t.Errorf("expected error containing %q, got %q", tt.expectError, err.Error())
 					}
 				}
 			}
@@ -605,16 +609,18 @@ func TestAttachmentDownloadSanitizesFilename(t *testing.T) {
 			defer ResetTestMode()
 
 			rootCmd.SetArgs([]string{"card", "attachments", "download", "241", "1"})
-
-			RunTestCommand(func() {
-				_ = rootCmd.Execute()
-			})
+			err := rootCmd.Execute()
 
 			if result.Response == nil {
 				t.Fatal("expected response, got nil")
 			}
 
-			if !result.Response.Success {
+			if err != nil {
+				t.Errorf("expected no error, got: %v", err)
+				return
+			}
+
+			if !result.Response.OK {
 				t.Errorf("expected success, got error: %v", result.Response)
 				return
 			}

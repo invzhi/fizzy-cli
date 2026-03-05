@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/basecamp/cli/output"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
@@ -55,14 +56,14 @@ var skillCmd = &cobra.Command{
 	Use:   "skill",
 	Short: "Install Fizzy skill file",
 	Long:  "Install the Fizzy SKILL.md file for use with Codex, Claude Code, or OpenCode.",
-	Run:   runSkill,
+	RunE:  runSkill,
 }
 
 func init() {
 	rootCmd.AddCommand(skillCmd)
 }
 
-func runSkill(cmd *cobra.Command, args []string) {
+func runSkill(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("Fizzy Skill Installation")
 	fmt.Println()
@@ -84,7 +85,7 @@ func runSkill(cmd *cobra.Command, args []string) {
 
 	if err != nil {
 		fmt.Println("Installation cancelled.")
-		os.Exit(0)
+		return nil //nolint:nilerr // user cancelled prompt
 	}
 
 	// Handle custom path
@@ -104,7 +105,7 @@ func runSkill(cmd *cobra.Command, args []string) {
 
 		if err != nil {
 			fmt.Println("Installation cancelled.")
-			os.Exit(0)
+			return nil //nolint:nilerr // user cancelled prompt
 		}
 
 		// Smart path handling
@@ -124,7 +125,7 @@ func runSkill(cmd *cobra.Command, args []string) {
 
 		if err != nil || !overwrite {
 			fmt.Println("Installation cancelled.")
-			os.Exit(0)
+			return nil //nolint:nilerr // user cancelled or declined overwrite
 		}
 	}
 
@@ -133,8 +134,7 @@ func runSkill(cmd *cobra.Command, args []string) {
 	content, err := downloadSkillFile()
 	if err != nil {
 		fmt.Println("✗")
-		fmt.Printf("Error downloading skill file: %v\n", err)
-		os.Exit(1)
+		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("downloading skill file: %v", err)}
 	}
 	fmt.Println("✓")
 
@@ -142,8 +142,7 @@ func runSkill(cmd *cobra.Command, args []string) {
 	err = installSkillFile(expandedPath, content)
 	if err != nil {
 		fmt.Println("✗")
-		fmt.Printf("Error installing skill file: %v\n", err)
-		os.Exit(1)
+		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("installing skill file: %v", err)}
 	}
 	fmt.Println("✓")
 
@@ -151,6 +150,8 @@ func runSkill(cmd *cobra.Command, args []string) {
 	fmt.Println("Fizzy skill installed successfully!")
 	fmt.Println()
 	fmt.Printf("Location: %s\n", expandedPath)
+
+	return nil
 }
 
 // normalizeSkillPath ensures the path ends with SKILL.md and has fizzy directory
