@@ -28,7 +28,7 @@ type Board struct {
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactive setup wizard",
-	Long:  "Configure Fizzy CLI with your API token, account, and default board.",
+	Long:  "Configure Fizzy CLI with your API token, account, and default board.\nNew users without an account will be guided through signup.",
 	RunE:  runSetup,
 }
 
@@ -46,6 +46,26 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	fmt.Println("Welcome to Fizzy CLI setup!")
 	fmt.Println()
 
+	// Ask if user has an account before checking existing config
+	var hasAccount string
+	err := huh.NewSelect[string]().
+		Title("Do you have a Fizzy account?").
+		Options(
+			huh.NewOption("Yes, I have an account", "yes"),
+			huh.NewOption("No, I'd like to sign up", "no"),
+		).
+		Value(&hasAccount).
+		Run()
+
+	if err != nil {
+		fmt.Println("Setup cancelled.")
+		return nil //nolint:nilerr // user cancelled prompt
+	}
+
+	if hasAccount == "no" {
+		return signupWizard()
+	}
+
 	// Check for existing config
 	globalExists := config.Exists()
 	localPath := config.LocalConfigPath()
@@ -57,7 +77,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			configLocation = "local config (" + localPath + ")"
 		}
 
-		err := huh.NewConfirm().
+		err = huh.NewConfirm().
 			Title(fmt.Sprintf("Existing %s found. Reconfigure?", configLocation)).
 			Value(&reconfigure).
 			Run()
@@ -75,7 +95,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 	// Ask hosted vs self-hosted
 	var hostingType string
-	err := huh.NewSelect[string]().
+	err = huh.NewSelect[string]().
 		Title("Are you using the hosted or self-hosted version?").
 		Options(
 			huh.NewOption("Hosted (app.fizzy.do)", "hosted"),

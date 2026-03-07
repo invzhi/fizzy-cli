@@ -3,11 +3,20 @@ package commands
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"gopkg.in/yaml.v3"
 )
+
+func TestSetupCommandDescription(t *testing.T) {
+	t.Run("long description mentions signup for new users", func(t *testing.T) {
+		if !strings.Contains(setupCmd.Long, "signup") {
+			t.Error("expected setup command long description to mention signup")
+		}
+	})
+}
 
 func TestParseAccounts(t *testing.T) {
 	t.Run("parses accounts from identity response", func(t *testing.T) {
