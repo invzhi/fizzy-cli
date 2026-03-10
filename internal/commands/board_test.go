@@ -189,8 +189,8 @@ func TestBoardShow(t *testing.T) {
 		if len(mock.GetCalls) != 1 {
 			t.Errorf("expected 1 Get call, got %d", len(mock.GetCalls))
 		}
-		if mock.GetCalls[0].Path != "/boards/123" {
-			t.Errorf("expected path '/boards/123', got '%s'", mock.GetCalls[0].Path)
+		if mock.GetCalls[0].Path != "/boards/123.json" {
+			t.Errorf("expected path '/boards/123.json', got '%s'", mock.GetCalls[0].Path)
 		}
 	})
 
@@ -204,6 +204,77 @@ func TestBoardShow(t *testing.T) {
 
 		err := boardShowCmd.RunE(boardShowCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
+	})
+}
+
+func TestBoardShowBreadcrumbs(t *testing.T) {
+	t.Run("shows publish breadcrumb for unpublished board", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: map[string]any{
+				"id":   "123",
+				"name": "Unpublished Board",
+			},
+		}
+
+		result := SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := boardShowCmd.RunE(boardShowCmd, []string{"123"})
+		assertExitCode(t, err, 0)
+
+		found := false
+		for _, bc := range result.Response.Breadcrumbs {
+			if bc.Action == "publish" {
+				found = true
+				if bc.Cmd != "fizzy board publish 123" {
+					t.Errorf("expected cmd 'fizzy board publish 123', got '%s'", bc.Cmd)
+				}
+			}
+			if bc.Action == "unpublish" {
+				t.Error("did not expect unpublish breadcrumb for unpublished board")
+			}
+		}
+		if !found {
+			t.Error("expected 'publish' breadcrumb but none found")
+		}
+	})
+
+	t.Run("shows unpublish breadcrumb for published board", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: map[string]any{
+				"id":         "123",
+				"name":       "Published Board",
+				"public_url": "https://app.fizzy.do/public/boards/test",
+			},
+		}
+
+		result := SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := boardShowCmd.RunE(boardShowCmd, []string{"123"})
+		assertExitCode(t, err, 0)
+
+		found := false
+		for _, bc := range result.Response.Breadcrumbs {
+			if bc.Action == "unpublish" {
+				found = true
+				if bc.Cmd != "fizzy board unpublish 123" {
+					t.Errorf("expected cmd 'fizzy board unpublish 123', got '%s'", bc.Cmd)
+				}
+			}
+			if bc.Action == "publish" {
+				t.Error("did not expect publish breadcrumb for published board")
+			}
+		}
+		if !found {
+			t.Error("expected 'unpublish' breadcrumb but none found")
+		}
 	})
 }
 

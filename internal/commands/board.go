@@ -96,12 +96,12 @@ var boardShowCmd = &cobra.Command{
 
 		boardID := args[0]
 
-		data, _, err := getSDK().Boards().Get(cmd.Context(), boardID)
+		resp, err := getSDK().Get(cmd.Context(), "/boards/"+boardID+".json")
 		if err != nil {
 			return convertSDKError(err)
 		}
 
-		items := normalizeAny(data)
+		items := normalizeAny(resp.Data)
 
 		summary := "Board"
 		if board, ok := items.(map[string]any); ok {

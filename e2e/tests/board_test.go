@@ -153,11 +153,14 @@ func TestBoardCRUD(t *testing.T) {
 			t.Skip("no board ID from create test")
 		}
 
+		published := true
 		publishResult := h.Run("board", "publish", boardID)
 
 		// Always unpublish on exit, even if assertions fail mid-test
 		t.Cleanup(func() {
-			h.Run("board", "unpublish", boardID)
+			if published {
+				h.Run("board", "unpublish", boardID)
+			}
 		})
 
 		if publishResult.ExitCode != harness.ExitSuccess {
@@ -186,8 +189,9 @@ func TestBoardCRUD(t *testing.T) {
 			t.Errorf("expected public_url %q after publish, got %q", publicURL, got)
 		}
 
-		// Unpublish is handled by t.Cleanup above; verify it works
+		// Verify unpublish works (cleanup is skipped since we unpublish here)
 		unpublishResult := h.Run("board", "unpublish", boardID)
+		published = false
 		if unpublishResult.ExitCode != harness.ExitSuccess {
 			t.Fatalf("expected exit code %d, got %d\nstderr: %s\nstdout: %s",
 				harness.ExitSuccess, unpublishResult.ExitCode, unpublishResult.Stderr, unpublishResult.Stdout)
