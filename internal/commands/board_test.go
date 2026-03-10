@@ -189,8 +189,8 @@ func TestBoardShow(t *testing.T) {
 		if len(mock.GetCalls) != 1 {
 			t.Errorf("expected 1 Get call, got %d", len(mock.GetCalls))
 		}
-		if mock.GetCalls[0].Path != "/boards/123" {
-			t.Errorf("expected path '/boards/123', got '%s'", mock.GetCalls[0].Path)
+		if mock.GetCalls[0].Path != "/boards/123.json" {
+			t.Errorf("expected path '/boards/123.json', got '%s'", mock.GetCalls[0].Path)
 		}
 	})
 
@@ -204,6 +204,77 @@ func TestBoardShow(t *testing.T) {
 
 		err := boardShowCmd.RunE(boardShowCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
+	})
+}
+
+func TestBoardShowBreadcrumbs(t *testing.T) {
+	t.Run("shows publish breadcrumb for unpublished board", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: map[string]any{
+				"id":   "123",
+				"name": "Unpublished Board",
+			},
+		}
+
+		result := SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := boardShowCmd.RunE(boardShowCmd, []string{"123"})
+		assertExitCode(t, err, 0)
+
+		found := false
+		for _, bc := range result.Response.Breadcrumbs {
+			if bc.Action == "publish" {
+				found = true
+				if bc.Cmd != "fizzy board publish 123" {
+					t.Errorf("expected cmd 'fizzy board publish 123', got '%s'", bc.Cmd)
+				}
+			}
+			if bc.Action == "unpublish" {
+				t.Error("did not expect unpublish breadcrumb for unpublished board")
+			}
+		}
+		if !found {
+			t.Error("expected 'publish' breadcrumb but none found")
+		}
+	})
+
+	t.Run("shows unpublish breadcrumb for published board", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: map[string]any{
+				"id":         "123",
+				"name":       "Published Board",
+				"public_url": "https://app.fizzy.do/public/boards/test",
+			},
+		}
+
+		result := SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := boardShowCmd.RunE(boardShowCmd, []string{"123"})
+		assertExitCode(t, err, 0)
+
+		found := false
+		for _, bc := range result.Response.Breadcrumbs {
+			if bc.Action == "unpublish" {
+				found = true
+				if bc.Cmd != "fizzy board unpublish 123" {
+					t.Errorf("expected cmd 'fizzy board unpublish 123', got '%s'", bc.Cmd)
+				}
+			}
+			if bc.Action == "publish" {
+				t.Error("did not expect publish breadcrumb for published board")
+			}
+		}
+		if !found {
+			t.Error("expected 'unpublish' breadcrumb but none found")
+		}
 	})
 }
 
@@ -386,6 +457,114 @@ func TestBoardDelete(t *testing.T) {
 		defer resetTest()
 
 		err := boardDeleteCmd.RunE(boardDeleteCmd, []string{"999"})
+		assertExitCode(t, err, errors.ExitNotFound)
+	})
+}
+
+func TestBoardPublish(t *testing.T) {
+	t.Run("publishes board", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.PostResponse = &client.APIResponse{
+			StatusCode: 201,
+			Data: map[string]any{
+				"id":         "123",
+				"name":       "Published Board",
+				"public_url": "https://app.fizzy.do/public/boards/test",
+			},
+		}
+
+		result := SetTestMode(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer ResetTestMode()
+
+		err := boardPublishCmd.RunE(boardPublishCmd, []string{"123"})
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !result.Response.OK {
+			t.Error("expected success response")
+		}
+		if len(mock.PostCalls) != 1 {
+			t.Errorf("expected 1 Post call, got %d", len(mock.PostCalls))
+		}
+		if mock.PostCalls[0].Path != "/boards/123/publication.json" {
+			t.Errorf("expected path '/boards/123/publication.json', got '%s'", mock.PostCalls[0].Path)
+		}
+		if result.Response == nil || result.Response.Data == nil {
+			t.Fatal("expected response data")
+		}
+		data, ok := result.Response.Data.(map[string]any)
+		if !ok {
+			t.Fatal("expected response data map")
+		}
+		if data["public_url"] != "https://app.fizzy.do/public/boards/test" {
+			t.Errorf("expected public_url in response, got %v", data["public_url"])
+		}
+	})
+
+	t.Run("handles API error", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.PostError = errors.NewForbiddenError("Only admins can publish boards")
+
+		SetTestMode(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer ResetTestMode()
+
+		err := boardPublishCmd.RunE(boardPublishCmd, []string{"123"})
+		assertExitCode(t, err, errors.ExitForbidden)
+	})
+}
+
+func TestBoardUnpublish(t *testing.T) {
+	t.Run("unpublishes board", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.DeleteResponse = &client.APIResponse{
+			StatusCode: 204,
+			Data:       map[string]any{},
+		}
+
+		result := SetTestMode(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer ResetTestMode()
+
+		err := boardUnpublishCmd.RunE(boardUnpublishCmd, []string{"123"})
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !result.Response.OK {
+			t.Error("expected success response")
+		}
+		if len(mock.DeleteCalls) != 1 {
+			t.Errorf("expected 1 Delete call, got %d", len(mock.DeleteCalls))
+		}
+		if mock.DeleteCalls[0].Path != "/boards/123/publication.json" {
+			t.Errorf("expected path '/boards/123/publication.json', got '%s'", mock.DeleteCalls[0].Path)
+		}
+		if result.Response == nil || result.Response.Data == nil {
+			t.Fatal("expected response data")
+		}
+		data, ok := result.Response.Data.(map[string]any)
+		if !ok {
+			t.Fatal("expected response data map")
+		}
+		if data["unpublished"] != true {
+			t.Errorf("expected unpublished=true, got %v", data["unpublished"])
+		}
+	})
+
+	t.Run("handles not found", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.DeleteError = errors.NewNotFoundError("Board not found")
+
+		SetTestMode(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer ResetTestMode()
+
+		err := boardUnpublishCmd.RunE(boardUnpublishCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }
