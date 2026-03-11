@@ -447,7 +447,7 @@ fizzy identity show                    # Show your identity and accessible accou
 
 ```bash
 fizzy account show                     # Show account settings (name, auto-postpone period)
-fizzy account entropy --auto_postpone_period_in_days N  # Update account default auto-postpone period (admin only)
+fizzy account entropy --auto_postpone_period_in_days N  # Update account default auto-postpone period (admin only, N: 3, 7, 11, 30, 90, 365)
 ```
 
 The `auto_postpone_period_in_days` is the account-level default. Cards are automatically moved to "Not Now" after this period of inactivity. Each board can override this with `board entropy`.
@@ -486,7 +486,7 @@ fizzy board update BOARD_ID [--name "Name"] [--all_access true/false] [--auto_po
 fizzy board publish BOARD_ID
 fizzy board unpublish BOARD_ID
 fizzy board delete BOARD_ID
-fizzy board entropy BOARD_ID --auto_postpone_period_in_days N
+fizzy board entropy BOARD_ID --auto_postpone_period_in_days N  # N: 3, 7, 11, 30, 90, 365
 ```
 
 `board show` includes `public_url` only when the board is published.

@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
@@ -11,13 +12,21 @@ import (
 
 var validAutoPostponePeriods = []int{3, 7, 11, 30, 90, 365}
 
+var validAutoPostponePeriodsHelp = func() string {
+	parts := make([]string, len(validAutoPostponePeriods))
+	for i, v := range validAutoPostponePeriods {
+		parts[i] = strconv.Itoa(v)
+	}
+	return strings.Join(parts, ", ")
+}()
+
 func validateAutoPostponePeriodInDays(days int) error {
 	for _, v := range validAutoPostponePeriods {
 		if days == v {
 			return nil
 		}
 	}
-	return errors.NewInvalidArgsError(fmt.Sprintf("--auto_postpone_period_in_days must be one of: 3, 7, 11, 30, 90, 365 (got %d)", days))
+	return errors.NewInvalidArgsError(fmt.Sprintf("--auto_postpone_period_in_days must be one of: %s (got %d)", validAutoPostponePeriodsHelp, days))
 }
 
 var boardCmd = &cobra.Command{
@@ -164,7 +173,7 @@ var boardCreateCmd = &cobra.Command{
 		if boardCreateAllAccess != "" {
 			req.AllAccess = boardCreateAllAccess == "true"
 		}
-		if boardCreateAutoPostponePeriodInDays > 0 {
+		if boardCreateAutoPostponePeriodInDays != 0 {
 			if err := validateAutoPostponePeriodInDays(boardCreateAutoPostponePeriodInDays); err != nil {
 				return err
 			}
@@ -220,7 +229,7 @@ var boardUpdateCmd = &cobra.Command{
 
 		boardID := args[0]
 
-		if boardUpdateAutoPostponePeriodInDays > 0 {
+		if boardUpdateAutoPostponePeriodInDays != 0 {
 			if err := validateAutoPostponePeriodInDays(boardUpdateAutoPostponePeriodInDays); err != nil {
 				return err
 			}
@@ -237,7 +246,7 @@ var boardUpdateCmd = &cobra.Command{
 			if boardUpdateName != "" {
 				body["name"] = boardUpdateName
 			}
-			if boardUpdateAutoPostponePeriodInDays > 0 {
+			if boardUpdateAutoPostponePeriodInDays != 0 {
 				body["auto_postpone_period_in_days"] = boardUpdateAutoPostponePeriodInDays
 			}
 			resp, patchErr := ac.Patch(cmd.Context(), "/boards/"+boardID+".json", body)
@@ -253,7 +262,7 @@ var boardUpdateCmd = &cobra.Command{
 			if boardUpdateAllAccess == "true" {
 				req.AllAccess = true
 			}
-			if boardUpdateAutoPostponePeriodInDays > 0 {
+			if boardUpdateAutoPostponePeriodInDays != 0 {
 				req.AutoPostponePeriodInDays = int32(boardUpdateAutoPostponePeriodInDays)
 			}
 			var updateErr error
@@ -378,7 +387,7 @@ var boardEntropyCmd = &cobra.Command{
 			return err
 		}
 
-		if boardEntropyAutoPostponePeriodInDays <= 0 {
+		if boardEntropyAutoPostponePeriodInDays == 0 {
 			return newRequiredFlagError("auto_postpone_period_in_days")
 		}
 		if err := validateAutoPostponePeriodInDays(boardEntropyAutoPostponePeriodInDays); err != nil {
@@ -420,13 +429,13 @@ func init() {
 	// Create
 	boardCreateCmd.Flags().StringVar(&boardCreateName, "name", "", "Board name (required)")
 	boardCreateCmd.Flags().StringVar(&boardCreateAllAccess, "all_access", "", "Allow all team members access (true/false)")
-	boardCreateCmd.Flags().IntVar(&boardCreateAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days (3, 7, 11, 30, 90, 365)")
+	boardCreateCmd.Flags().IntVar(&boardCreateAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days ("+validAutoPostponePeriodsHelp+")")
 	boardCmd.AddCommand(boardCreateCmd)
 
 	// Update
 	boardUpdateCmd.Flags().StringVar(&boardUpdateName, "name", "", "Board name")
 	boardUpdateCmd.Flags().StringVar(&boardUpdateAllAccess, "all_access", "", "Allow all team members access (true/false)")
-	boardUpdateCmd.Flags().IntVar(&boardUpdateAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days (3, 7, 11, 30, 90, 365)")
+	boardUpdateCmd.Flags().IntVar(&boardUpdateAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days ("+validAutoPostponePeriodsHelp+")")
 	boardCmd.AddCommand(boardUpdateCmd)
 
 	// Delete
@@ -437,6 +446,6 @@ func init() {
 	boardCmd.AddCommand(boardUnpublishCmd)
 
 	// Entropy
-	boardEntropyCmd.Flags().IntVar(&boardEntropyAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days (3, 7, 11, 30, 90, 365)")
+	boardEntropyCmd.Flags().IntVar(&boardEntropyAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days ("+validAutoPostponePeriodsHelp+")")
 	boardCmd.AddCommand(boardEntropyCmd)
 }

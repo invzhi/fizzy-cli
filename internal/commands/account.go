@@ -58,7 +58,7 @@ var accountEntropyCmd = &cobra.Command{
 			return err
 		}
 
-		if accountEntropyAutoPostponePeriodInDays <= 0 {
+		if accountEntropyAutoPostponePeriodInDays == 0 {
 			return newRequiredFlagError("auto_postpone_period_in_days")
 		}
 		if err := validateAutoPostponePeriodInDays(accountEntropyAutoPostponePeriodInDays); err != nil {
@@ -91,6 +91,6 @@ func init() {
 	accountCmd.AddCommand(accountShowCmd)
 
 	// Entropy
-	accountEntropyCmd.Flags().IntVar(&accountEntropyAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days (3, 7, 11, 30, 90, 365)")
+	accountEntropyCmd.Flags().IntVar(&accountEntropyAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days ("+validAutoPostponePeriodsHelp+")")
 	accountCmd.AddCommand(accountEntropyCmd)
 }
